@@ -13,9 +13,7 @@ aon = Pin(0, mode=Pin.OUT, value=1)
 signal = Pin(2, mode=Pin.IN)
 
 
-pulse_length = 0
 prev_signal = 0
-
 last_transition_ms = 0
 last_width = 0
 
@@ -25,6 +23,9 @@ def showlen(p):
     val = p.value()
     transition_ms = time.ticks_ms()
     width = transition_ms - last_transition_ms
+
+    print("ms:",transition_ms, "data:", val, width,sep=",")
+    
     if width % 100 > 75 or (width % 100 < 25 and width > 100):
         if val != prev_signal:
             last_width = width
@@ -35,10 +36,10 @@ def showlen(p):
             if last_width % 100 > 75:
                 interval += 1
             interval *= 100
-            print(val, interval, last_width)
+ #           print(val, interval, last_width)
 
 last_transition_ms = time.ticks_ms()
-signal.irq(handler=showlen, trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING)
+signal.irq(handler=showlen, trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING )
 
 
 
@@ -56,6 +57,6 @@ def getvalue(t):
 
 #timer = Timer(mode=Timer.PERIODIC, period=10, callback=getvalue)
 
-time.sleep_ms(60000)
+time.sleep_ms(6000)
 
 #timer.deinit()
