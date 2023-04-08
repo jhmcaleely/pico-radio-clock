@@ -12,15 +12,14 @@ aon = Pin(0, mode=Pin.OUT, value=1)
 # OUT: Non-inverted output signal
 signal = Pin(2, mode=Pin.IN)
 
-def getvalue(t):
-    val = signal.value()    
+def showlen(p):
+    val = p.value()
     transition_ms = time.ticks_ms()
 
-    print("ms",transition_ms, "val", val, sep=",")
+    print("ms",transition_ms, "val", val,sep=",")
     
-
-timer = Timer(mode=Timer.PERIODIC, period=25, callback=getvalue)
+signal.irq(handler=showlen, trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING )
 
 time.sleep_ms(80000)
 
-timer.deinit()
+signal.irq()
