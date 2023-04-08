@@ -3,51 +3,59 @@
 (require csv-reading)
 (require plot)
 
-(define ref-start 26000)
 (define ref-offset 20)
-
-(define (signal-point n)
-  (+ ref-start ref-offset n))
+(define plot-window 6000)
 
 (define signal0 '((0 0.1) (499 0.1) (500 0.9) (999 0.9)))
 (define signaln '((0 0.1) (99 0.1) (100 0.5) (299 0.5) (300 0.9) (999 0.9)))
 
+(define interrupt-file (open-input-file "data.csv"))
+(define timer-file (open-input-file "datatimer.csv"))
+
+(define interrupt-data (csv->list interrupt-file))
+(define timer-data (csv->list timer-file))
+
+(define (start-offset-from-data lst)
+  (+ ref-offset (string->number (second (first lst)))))
+
+(define interrupt-start (start-offset-from-data interrupt-data))
+(define timer-start (start-offset-from-data timer-data))
+
+(define (timer-point-from-row row)
+  (let* ((ms (string->number (second row)))
+         (corrected-ms (- ms timer-start))
+         (value (string->number (fourth row))))
+    (list corrected-ms value)))
 
 
-(define file (open-input-file "data.csv"))
+(define (interrupt-point-from-row row)
+  (let* ((ms (string->number (second row)))
+         (corrected-ms (- ms interrupt-start))
+         (value (string->number (fourth row))))
+    (list corrected-ms value)))
 
-(define data (csv->list file))
-
-(define start (+ ref-offset (string->number (second (first data)))))
-
-(define (timer-datapoint x)
-  (let* ((ms (string->number (second x)))
-        (corrected-ms (- ms start))
-        (value (string->number (fourth x))))
-    (list `(,corrected-ms ,value))))
-
-
-(define (datapoint x)
-   (let* ((ms (string->number (second x)))
-         (corrected-ms (- ms start))
-         (value (string->number (fourth x))))
-    (list `(,(sub1 corrected-ms) ,(modulo (add1 value) 2)) `(,corrected-ms ,value))))
-
-(define new-data (map datapoint data))
+(define (interrupt-datapoint row)
+  (let ((point (interrupt-point-from-row row)))
+    (list `(,(sub1 (first point)) ,(modulo (add1 (second point)) 2)) point)))
 
 (define (flatten-once lst)
   (apply append lst))
 
-(define (graph nn)
-(plot (list (lines (map (lambda (n) (list (+ nn ref-offset (first n)) (second n))) signal0) #:color 1)
-            (lines (map (lambda (n) (list (+ nn ref-offset (first n)) (second n))) signaln) #:color 3)
-            (lines (flatten-once new-data) #:color 2))
-      #:aspect-ratio (/ 4 1)
-      #:width 3000
-      #:x-min nn
-      #:x-max (+ nn 6000)
-      #:y-max 1.1
-      #:y-min -0.1
-      #:x-label "ticks (ms)"))
+(define timer-points (map timer-point-from-row timer-data))
+(define interrupt-points (flatten-once (map interrupt-datapoint interrupt-data)))
 
-(map graph (build-list 14 (lambda (x) (* x 6000))))
+(define (graph start-offset data)
+  (plot (list (lines (map (lambda (n) (list (+ start-offset ref-offset (first n)) (second n))) signal0) #:color 1)
+              (lines (map (lambda (n) (list (+ start-offset ref-offset (first n)) (second n))) signaln) #:color 3)
+              (lines data #:color 2))
+        #:aspect-ratio (/ 4 1)
+        #:width 3000
+        #:x-min start-offset
+        #:x-max (+ start-offset plot-window)
+        #:y-max 1.1
+        #:y-min -0.1
+        #:x-label "ticks (ms)"))
+
+(map (lambda (n) (graph n timer-points)) (build-list (ceiling (/ 80000 plot-window)) (lambda (x) (* x plot-window))))
+
+(map (lambda (n) (graph n interrupt-points)) (build-list (ceiling (/ 80000 plot-window)) (lambda (x) (* x plot-window))))
